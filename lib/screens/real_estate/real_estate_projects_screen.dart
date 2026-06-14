@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:diplom/screens/main_tabs/calculator_tab.dart';
-import 'package:diplom/screens/report_screen.dart';
 import 'package:diplom/data/project_storage.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:diplom/screens/real_estate/rent_calculator_tab.dart';
-import 'package:diplom/screens/real_estate/sale_calculator_tab.dart';
-import 'package:diplom/screens/real_estate/rent_report_screen.dart';
-import 'package:diplom/screens/real_estate/rent_report_screen.dart';
-import 'package:diplom/screens/real_estate/sale_report_screen.dart';
+import 'rent_calculator_tab.dart';
+import 'sale_calculator_tab.dart';
+import 'rent_report_screen.dart';
+import 'sale_report_screen.dart';
 
 class RealEstateProjectsScreen extends StatefulWidget {
   final String subcategory;
@@ -30,7 +25,6 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
   List<Map<String, dynamic>> _savedProjects = [];
   bool _isLoading = true;
 
-  // Комбинированный тип для хранения в SharedPreferences
   String get _storageType => 'Недвижимость_${widget.subcategory}';
 
   @override
@@ -64,7 +58,6 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
   void _navigateToCalculator({Map<String, dynamic>? projectToEdit}) async {
     Widget calculatorWidget;
 
-    // Выбираем нужный калькулятор в зависимости от подкатегории
     if (widget.subcategory == 'Аренда') {
       calculatorWidget = RentCalculatorTab(
         projectType: _storageType,
@@ -75,7 +68,6 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
         },
       );
     } else {
-      // Продажи
       calculatorWidget = SaleCalculatorTab(
         projectType: _storageType,
         projectData: projectToEdit,
@@ -127,33 +119,33 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
         allProjects.add(projectData);
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = jsonEncode(allProjects);
-      await prefs.setString('saved_projects', jsonString);
-
+      await ProjectStorage.saveProjects(allProjects);
       await _loadProjects();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
   void _showReport(Map<String, dynamic> project) {
     if (widget.subcategory == 'Аренда') {
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -167,7 +159,6 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
         ),
       );
     } else {
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -193,26 +184,27 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
         p['name'] == _savedProjects[index]['name'] &&
             p['type'] == _storageType);
 
-        final prefs = await SharedPreferences.getInstance();
-        final jsonString = jsonEncode(allProjects);
-        await prefs.setString('saved_projects', jsonString);
-
+        await ProjectStorage.saveProjects(allProjects);
         await _loadProjects();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Проект "$projectName" удален'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Проект "$projectName" удален'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка удаления: $e'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка удаления: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -245,26 +237,27 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
             .where((p) => p['type'] != _storageType)
             .toList();
 
-        final prefs = await SharedPreferences.getInstance();
-        final jsonString = jsonEncode(filteredProjects);
-        await prefs.setString('saved_projects', jsonString);
-
+        await ProjectStorage.saveProjects(filteredProjects);
         await _loadProjects();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Все проекты "${widget.subcategory}" удалены'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Все проекты "${widget.subcategory}" удалены'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка: $e'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -399,7 +392,6 @@ class _RealEstateProjectsScreenState extends State<RealEstateProjectsScreen> {
           },
         ),
       ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: widget.projectColor,
         onPressed: () {

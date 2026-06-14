@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:diplom/database/database_helper.dart';
-import 'package:diplom/database/models/user.dart';
 import 'package:diplom/screens/auth/register_screen.dart';
 import 'package:diplom/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
@@ -32,13 +31,21 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = '';
       });
 
-      try {
-        final user = await DatabaseHelper().loginUser(
-          _emailController.text,
-          _hashPassword(_passwordController.text),
-        );
+      await Future.delayed(const Duration(milliseconds: 500));
 
-        if (user != null) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final savedEmail = prefs.getString('user_email');
+        final savedPasswordHash = prefs.getString('user_password');
+
+        final inputPasswordHash = _hashPassword(_passwordController.text);
+
+        if (_emailController.text == savedEmail &&
+            inputPasswordHash == savedPasswordHash &&
+            savedEmail != null) {
+
+          await prefs.setBool('is_logged_in', true);
+
           if (mounted) {
             Navigator.pushAndRemoveUntil(
               context,

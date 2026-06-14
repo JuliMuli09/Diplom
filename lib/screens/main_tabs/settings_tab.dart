@@ -94,22 +94,6 @@ class _SettingsTabState extends State<SettingsTab> {
     }
   }
 
-  void _exportToPDF() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Экспорт в PDF'),
-        content: const Text('Функция экспорта будет доступна в следующей версии'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showPrivacyPolicy() {
     showDialog(
       context: context,

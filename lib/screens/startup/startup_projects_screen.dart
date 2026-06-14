@@ -1,29 +1,31 @@
 import 'package:flutter/material.dart';
-import 'package:diplom/screens/main_tabs/calculator_tab.dart';
-import 'package:diplom/screens/report_screen.dart';
 import 'package:diplom/data/project_storage.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'my_startup_calculator_tab.dart';
+import 'investor_calculator_tab.dart';
+import 'my_startup_report_screen.dart';
+import 'investor_report_screen.dart';
 
-class ProjectDetailScreen extends StatefulWidget {
-  final String projectType;
+class StartupProjectsScreen extends StatefulWidget {
+  final String subcategory;
   final Color projectColor;
   final IconData projectIcon;
 
-  const ProjectDetailScreen({
+  const StartupProjectsScreen({
     Key? key,
-    required this.projectType,
+    required this.subcategory,
     required this.projectColor,
     required this.projectIcon,
   }) : super(key: key);
 
   @override
-  _ProjectDetailScreenState createState() => _ProjectDetailScreenState();
+  _StartupProjectsScreenState createState() => _StartupProjectsScreenState();
 }
 
-class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
+class _StartupProjectsScreenState extends State<StartupProjectsScreen> {
   List<Map<String, dynamic>> _savedProjects = [];
   bool _isLoading = true;
+
+  String get _storageType => 'Стартап_${widget.subcategory}';
 
   @override
   void initState() {
@@ -37,9 +39,13 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     });
 
     try {
-      final projects = await ProjectStorage.getProjectsByType(widget.projectType);
+      final allProjects = await ProjectStorage.getProjects();
+      final filteredProjects = allProjects
+          .where((p) => p['type'] == _storageType)
+          .toList();
+
       setState(() {
-        _savedProjects = projects;
+        _savedProjects = filteredProjects;
         _isLoading = false;
       });
     } catch (e) {
@@ -50,17 +56,32 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
   }
 
   void _navigateToCalculator({Map<String, dynamic>? projectToEdit}) async {
+    Widget calculatorWidget;
+
+    if (widget.subcategory == 'Мой стартап') {
+      calculatorWidget = MyStartupCalculatorTab(
+        projectType: _storageType,
+        projectData: projectToEdit,
+        onProjectSaved: (projectData) async {
+          await _saveOrUpdateProject(projectData, isEdit: projectToEdit != null);
+          return projectData;
+        },
+      );
+    } else {
+      calculatorWidget = InvestorCalculatorTab(
+        projectType: _storageType,
+        projectData: projectToEdit,
+        onProjectSaved: (projectData) async {
+          await _saveOrUpdateProject(projectData, isEdit: projectToEdit != null);
+          return projectData;
+        },
+      );
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CalculatorTab(
-          projectType: widget.projectType,
-          projectData: projectToEdit,
-          onProjectSaved: (projectData) async {
-            await _saveOrUpdateProject(projectData, isEdit: projectToEdit != null);
-            return projectData;
-          },
-        ),
+        builder: (context) => calculatorWidget,
       ),
     );
 
@@ -71,7 +92,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
   Future<void> _saveOrUpdateProject(Map<String, dynamic> projectData, {bool isEdit = false}) async {
     try {
-      projectData['type'] = widget.projectType;
+      projectData['type'] = _storageType;
+      projectData['subcategory'] = widget.subcategory;
 
       if (isEdit) {
         projectData['createdAt'] = projectData['createdAt'] ?? DateTime.now().toIso8601String();
@@ -85,9 +107,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
 
       if (isEdit) {
         final projectName = projectData['name'];
-        final projectType = projectData['type'];
         final index = allProjects.indexWhere((p) =>
-        p['name'] == projectName && p['type'] == projectType);
+        p['name'] == projectName && p['type'] == _storageType);
 
         if (index != -1) {
           allProjects[index] = projectData;
@@ -98,59 +119,70 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
         allProjects.add(projectData);
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = jsonEncode(allProjects);
-      await prefs.setString('saved_projects', jsonString);
-
+      await ProjectStorage.saveProjects(allProjects);
       await _loadProjects();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green,
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showReport(Map<String, dynamic> project) {
+    if (widget.subcategory == 'Мой стартап') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => MyStartupReportScreen(
+            projectData: project,
+            onEditProject: () {
+              Navigator.pop(context);
+              _navigateToCalculator(projectToEdit: project);
+            },
+          ),
         ),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red,
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InvestorReportScreen(
+            projectData: project,
+            onEditProject: () {
+              Navigator.pop(context);
+              _navigateToCalculator(projectToEdit: project);
+            },
+          ),
         ),
       );
     }
   }
 
-  // МЕТОД ДЛЯ ПОКАЗА ОТЧЕТА
-  void _showReport(Map<String, dynamic> project) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ReportScreen(
-          projectData: project,
-          onEditProject: () {
-            Navigator.pop(context);
-            _navigateToCalculator(projectToEdit: project);
-          },
-        ),
-      ),
-    );
-  }
-
-  // МЕТОД ДЛЯ УДАЛЕНИЯ ПРОЕКТА
   Future<void> _deleteProject(int index) async {
     if (index >= 0 && index < _savedProjects.length) {
       final projectName = _savedProjects[index]['name'];
 
       try {
         final allProjects = await ProjectStorage.getProjects();
-        final projectToDelete = _savedProjects[index];
-
         allProjects.removeWhere((p) =>
-        p['name'] == projectToDelete['name'] &&
-            p['type'] == projectToDelete['type']
-        );
+        p['name'] == _savedProjects[index]['name'] &&
+            p['type'] == _storageType);
 
         await ProjectStorage.saveProjects(allProjects);
         await _loadProjects();
@@ -168,8 +200,8 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Ошибка удаления: $e'),
-              backgroundColor: Colors.red,
               duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
             ),
           );
         }
@@ -183,7 +215,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       builder: (context) => AlertDialog(
         title: const Text('Подтверждение'),
         content: Text(
-          'Удалить все проекты типа "${widget.projectType}"?',
+          'Удалить все проекты "${widget.subcategory}"?',
         ),
         actions: [
           TextButton(
@@ -202,29 +234,30 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
       try {
         final allProjects = await ProjectStorage.getProjects();
         final filteredProjects = allProjects
-            .where((p) => p['type'] != widget.projectType)
+            .where((p) => p['type'] != _storageType)
             .toList();
 
-        final prefs = await SharedPreferences.getInstance();
-        final jsonString = jsonEncode(filteredProjects);
-        await prefs.setString('saved_projects', jsonString);
-
+        await ProjectStorage.saveProjects(filteredProjects);
         await _loadProjects();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Все проекты "${widget.projectType}" удалены'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Все проекты "${widget.subcategory}" удалены'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка: $e'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -233,12 +266,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
     return '${date.day}.${date.month}.${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Проекты: ${widget.projectType}'),
+        title: Text('${widget.subcategory}'),
         centerTitle: true,
         backgroundColor: widget.projectColor,
         actions: [
@@ -326,14 +358,6 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen> {
                         color: Colors.grey,
                       ),
                     ),
-                    if (project['investment'] != null)
-                      Text(
-                        'Инвестиции: ${project['investment']} руб.',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue,
-                        ),
-                      ),
                   ],
                 ),
                 trailing: Row(

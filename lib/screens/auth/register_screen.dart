@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:diplom/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -18,7 +20,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _isLoading = false;
   String _errorMessage = '';
-  bool _isLoginMode = false; // true = вход, false = регистрация
+  bool _isLoginMode = false;
+
+  String _hashPassword(String password) {
+    return sha256.convert(utf8.encode(password)).toString();
+  }
 
   @override
   void initState() {
@@ -26,7 +32,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _checkIfAlreadyLoggedIn();
   }
 
-  // Если пользователь уже заходил — сразу на главную
   Future<void> _checkIfAlreadyLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
@@ -46,26 +51,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _errorMessage = '';
       });
 
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       final prefs = await SharedPreferences.getInstance();
       final savedEmail = prefs.getString('user_email');
-      final savedPassword = prefs.getString('user_password');
+      final savedPasswordHash = prefs.getString('user_password');
 
       if (_isLoginMode) {
         // ВХОД
+        final inputPasswordHash = _hashPassword(_passwordController.text);
         if (_emailController.text == savedEmail &&
-            _passwordController.text == savedPassword) {
-          // Успешный вход
+            inputPasswordHash == savedPasswordHash) {
           await prefs.setBool('is_logged_in', true);
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const MainTabsScreen()),
-                (route) => false,
-          );
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainTabsScreen()),
+                  (route) => false,
+            );
+          }
         } else {
           setState(() {
-            _errorMessage = 'Такого аккаунта не существует или неверный пароль';
+            _errorMessage = 'Неверный email или пароль';
             _isLoading = false;
           });
         }
@@ -79,26 +86,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
           return;
         }
 
-        // Проверяем, есть ли уже такой email
         if (savedEmail == _emailController.text) {
           setState(() {
-            _errorMessage = 'Такой аккаунт уже существует. Нажмите "Войти".';
+            _errorMessage = 'Аккаунт уже существует. Войдите.';
             _isLoading = false;
           });
           return;
         }
 
-        // Сохраняем нового пользователя
+        // Сохраняем хеш пароля
+        final passwordHash = _hashPassword(_passwordController.text);
+
         await prefs.setString('user_name', _nameController.text);
         await prefs.setString('user_email', _emailController.text);
-        await prefs.setString('user_password', _passwordController.text);
+        await prefs.setString('user_password', passwordHash);
         await prefs.setBool('is_logged_in', true);
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => const MainTabsScreen()),
-              (route) => false,
-        );
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const MainTabsScreen()),
+                (route) => false,
+          );
+        }
       }
     }
   }
@@ -142,7 +152,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 30),
 
-                // Поле Имя — только при регистрации
                 if (!_isLoginMode)
                   Column(
                     children: [
@@ -164,7 +173,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
 
-                // Email
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -185,7 +193,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Пароль
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
@@ -206,7 +213,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // Подтверждение пароля — только при регистрации
                 if (!_isLoginMode)
                   Column(
                     children: [
@@ -229,7 +235,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ],
                   ),
 
-                // Сообщение об ошибке
                 if (_errorMessage.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -245,7 +250,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
 
-                // Кнопка действия (Войти / Зарегистрироваться)
                 ElevatedButton(
                   onPressed: _isLoading ? null : _submit,
                   style: ElevatedButton.styleFrom(
@@ -268,7 +272,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 const SizedBox(height: 16),
 
-                // Переключение между режимами
                 TextButton(
                   onPressed: _toggleMode,
                   child: Text(

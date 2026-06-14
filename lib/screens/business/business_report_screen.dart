@@ -444,7 +444,7 @@ class _BusinessReportScreenState extends State<BusinessReportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      '📚 ЧТО ЭТО ЗНАЧИТ',
+                      'ЧТО ЭТО ЗНАЧИТ',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                     ),
                     const SizedBox(height: 10),

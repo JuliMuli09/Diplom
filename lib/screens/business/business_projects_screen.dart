@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:diplom/data/project_storage.dart';
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'business_calculator_tab.dart';
 import 'business_report_screen.dart';
 
@@ -25,7 +23,6 @@ class _BusinessProjectsScreenState extends State<BusinessProjectsScreen> {
   List<Map<String, dynamic>> _savedProjects = [];
   bool _isLoading = true;
 
-  // Комбинированный тип для хранения в SharedPreferences
   String get _storageType => 'Бизнес_${widget.subcategory}';
 
   @override
@@ -105,27 +102,28 @@ class _BusinessProjectsScreenState extends State<BusinessProjectsScreen> {
         allProjects.add(projectData);
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = jsonEncode(allProjects);
-      await prefs.setString('saved_projects', jsonString);
-
+      await ProjectStorage.saveProjects(allProjects);
       await _loadProjects();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Проект "${projectData['name']}" ${isEdit ? 'обновлен' : 'сохранен'}'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
-          duration: const Duration(seconds: 2),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка ${isEdit ? 'обновления' : 'сохранения'}: $e'),
+            duration: const Duration(seconds: 2),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -154,26 +152,27 @@ class _BusinessProjectsScreenState extends State<BusinessProjectsScreen> {
         p['name'] == _savedProjects[index]['name'] &&
             p['type'] == _storageType);
 
-        final prefs = await SharedPreferences.getInstance();
-        final jsonString = jsonEncode(allProjects);
-        await prefs.setString('saved_projects', jsonString);
-
+        await ProjectStorage.saveProjects(allProjects);
         await _loadProjects();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Проект "$projectName" удален'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Проект "$projectName" удален'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка удаления: $e'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка удаления: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -206,26 +205,27 @@ class _BusinessProjectsScreenState extends State<BusinessProjectsScreen> {
             .where((p) => p['type'] != _storageType)
             .toList();
 
-        final prefs = await SharedPreferences.getInstance();
-        final jsonString = jsonEncode(filteredProjects);
-        await prefs.setString('saved_projects', jsonString);
-
+        await ProjectStorage.saveProjects(filteredProjects);
         await _loadProjects();
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Все проекты "${widget.subcategory}" удалены'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Все проекты "${widget.subcategory}" удалены'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка: $e'),
-            duration: const Duration(seconds: 2),
-            backgroundColor: Colors.red,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка: $e'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

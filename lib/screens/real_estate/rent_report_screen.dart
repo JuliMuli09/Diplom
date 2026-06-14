@@ -235,7 +235,7 @@ class _RentReportScreenState extends State<RentReportScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      '📚 Что означают эти показатели:',
+                      'Что означают эти показатели:',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
                     ),
                     const SizedBox(height: 10),
